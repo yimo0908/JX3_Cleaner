@@ -1,0 +1,22 @@
+﻿<Application x:Class="JX3Cleaner.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Win11 外观：圆角按钮 / 输入框 / 下拉框 / 页签 / 滚动条 -->
+                <ResourceDictionary Source="Themes/Win11.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <SolidColorBrush x:Key="TextPrimary" Color="#1F1F1F" />
+            <SolidColorBrush x:Key="TextSecondary" Color="#595959" />
+            <SolidColorBrush x:Key="TextTertiary" Color="#8C8C8C" />
+            <SolidColorBrush x:Key="DangerText" Color="#C62828" />
+            <SolidColorBrush x:Key="DangerBg" Color="#FDECEA" />
+            <SolidColorBrush x:Key="WarnText" Color="#B26A00" />
+            <SolidColorBrush x:Key="WarnBg" Color="#FFF4E5" />
+            <SolidColorBrush x:Key="PanelBg" Color="#FAFAF9" />
+            <SolidColorBrush x:Key="LineBrush" Color="#E5E5E3" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

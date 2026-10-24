@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/JX3Cleaner.App/JX3Cleaner.App.csproj" />
+    <Project Path="src/JX3Cleaner.Core/JX3Cleaner.Core.csproj" />
+    <Project Path="src/JX3Cleaner.Diag/JX3Cleaner.Diag.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/JX3Cleaner.Tests/JX3Cleaner.Tests.csproj" />
+  </Folder>
+</Solution>

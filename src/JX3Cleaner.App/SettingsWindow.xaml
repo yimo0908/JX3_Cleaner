@@ -1,0 +1,144 @@
+﻿<Window x:Class="JX3Cleaner.App.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:JX3Cleaner.App.Controls"
+        Title="设置" Width="760" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False"
+        FontFamily="Microsoft YaHei UI" Background="White" UseLayoutRounding="True">
+
+    <Grid Margin="0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 标题区 -->
+        <Border Grid.Row="0" Background="#FAFAF9" BorderBrush="#E5E5E3" BorderThickness="0,0,0,1"
+                Padding="24,18,24,16">
+            <StackPanel>
+                <TextBlock Text="设置" FontSize="18" FontWeight="SemiBold" Foreground="#1F1F1F" />
+                <TextBlock x:Name="IntroText" FontSize="12" Foreground="#8C8C8C" Margin="0,6,0,0"
+                           TextWrapping="Wrap"
+                           Text="设置保存在程序目录 config\settings.json，随程序文件夹整体搬移。" />
+                <Border x:Name="FirstRunBanner" Background="#FFF4E5" CornerRadius="6" Padding="10,7"
+                        Margin="0,10,0,0" Visibility="Collapsed">
+                    <TextBlock FontSize="12" Foreground="#B26A00" TextWrapping="Wrap"
+                               Text="首次使用：请先定位剑网3客户端地址，校验通过并保存后才会进入主界面。" />
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- 设置项：每项一行 -->
+        <Grid Grid.Row="1" Margin="24,18,24,4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="196" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- 1. 客户端地址 -->
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="客户端地址" FontSize="13" Foreground="#1F1F1F"
+                       VerticalAlignment="Top" Margin="0,6,0,0" />
+            <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,20">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border x:Name="PathBox" Grid.Column="0" MinHeight="32" Padding="10,6"
+                            Background="White" BorderBrush="#D6D5D1" BorderThickness="1" CornerRadius="6">
+                        <TextBlock x:Name="PathText" Text="未定位" FontSize="12" FontFamily="Consolas"
+                                   Foreground="#8C8C8C" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" />
+                    </Border>
+
+                    <Button x:Name="ScanDiskButton" Grid.Column="1" Content="扫盘" Padding="16,6"
+                            Margin="8,0,0,0" Click="ScanDisk_Click" ToolTip="在所有固定磁盘中搜索客户端目录" />
+                    <Button x:Name="LocateButton" Grid.Column="2" Content="手动定位" Padding="16,6"
+                            Margin="8,0,0,0" Click="Locate_Click" />
+                </Grid>
+
+                <TextBlock x:Name="PathStatusText" FontSize="11.5" Foreground="#8C8C8C" Margin="2,7,0,0"
+                           TextWrapping="Wrap" Text="尚未定位客户端目录" />
+            </StackPanel>
+
+            <!-- 2. 默认清理方式 -->
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="默认清理方式" FontSize="13" Foreground="#1F1F1F"
+                       VerticalAlignment="Center" Margin="0,0,0,20" />
+            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,20"
+                        VerticalAlignment="Center">
+                <RadioButton x:Name="RecycleRadio" Content="移动到回收站（可还原）" FontSize="12.5"
+                             GroupName="Mode" IsChecked="True" Checked="Mode_Checked" />
+                <RadioButton x:Name="DeleteRadio" Content="直接删除（cmd.exe del）" FontSize="12.5"
+                             GroupName="Mode" Margin="26,0,0,0" Checked="Mode_Checked" />
+            </StackPanel>
+
+            <!-- 3. 聊天记录：保留最近 N 个 -->
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="聊天记录默认保留最近" FontSize="13" Foreground="#1F1F1F"
+                       VerticalAlignment="Center" Margin="0,0,0,14" />
+            <controls:NumberStepper x:Name="ChatLogStepper" Grid.Row="2" Grid.Column="1" Margin="0,0,0,14"
+                                    Step="1" Minimum="0" Maximum="60" Suffix="个" />
+
+            <!-- 4. 战斗记录：保留最近 X 天 -->
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="战斗记录默认保留最近" FontSize="13" Foreground="#1F1F1F"
+                       VerticalAlignment="Center" Margin="0,0,0,14" />
+            <controls:NumberStepper x:Name="FightStatStepper" Grid.Row="3" Grid.Column="1" Margin="0,0,0,14"
+                                    Step="5" Minimum="0" Maximum="3650" Suffix="天" />
+
+            <!-- 5. JCL 战斗日志：保留最近 Y 天 -->
+            <TextBlock Grid.Row="4" Grid.Column="0" Text="JCL战斗日志默认保留最近" FontSize="13" Foreground="#1F1F1F"
+                       VerticalAlignment="Center" Margin="0,0,0,14" />
+            <controls:NumberStepper x:Name="CombatLogStepper" Grid.Row="4" Grid.Column="1" Margin="0,0,0,14"
+                                    Step="5" Minimum="0" Maximum="3650" Suffix="天" />
+
+            <!-- 6. 金团记录：保留最近 Z 天 -->
+            <TextBlock Grid.Row="5" Grid.Column="0" Text="金团记录默认保留最近" FontSize="13" Foreground="#1F1F1F"
+                       VerticalAlignment="Center" Margin="0,0,0,14" />
+            <controls:NumberStepper x:Name="GkpStepper" Grid.Row="5" Grid.Column="1" Margin="0,0,0,14"
+                                    Step="5" Minimum="0" Maximum="3650" Suffix="天" />
+
+            <!-- 7. 云团监数据：保留最近 M 组 -->
+            <TextBlock Grid.Row="6" Grid.Column="0" Text="云团监数据默认保留最近" FontSize="13" Foreground="#1F1F1F"
+                       VerticalAlignment="Center" Margin="0,0,0,16" />
+            <controls:NumberStepper x:Name="TeamMonStepper" Grid.Row="6" Grid.Column="1" Margin="0,0,0,16"
+                                    Step="1" Minimum="0" Maximum="200" Suffix="组" />
+
+            <!-- 8. 运行环境（只读）：启动时的自检结论，鼠标悬停看完整诊断 -->
+            <TextBlock Grid.Row="7" Grid.Column="0" Text="运行环境" FontSize="13" Foreground="#1F1F1F"
+                       VerticalAlignment="Top" Margin="0,2,0,0" />
+            <TextBlock x:Name="RuntimeText" Grid.Row="7" Grid.Column="1" FontSize="11.5" Foreground="#8C8C8C"
+                       TextWrapping="Wrap" LineHeight="18" Margin="0,2,0,0"
+                       Text="正在自检…" />
+        </Grid>
+
+        <!-- 底部保存 -->
+        <Border Grid.Row="2" Background="#FAFAF9" BorderBrush="#E5E5E3" BorderThickness="0,1,0,0"
+                Padding="24,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" x:Name="HintText" FontSize="11.5" Foreground="#8C8C8C"
+                           VerticalAlignment="Center" TextWrapping="Wrap"
+                           Text="保留数量填 0 表示不作保留（全部纳入清理范围）。" />
+
+                <Button x:Name="SaveButton" Grid.Column="1" Content="保存" Padding="30,8" FontSize="13"
+                        Style="{StaticResource W11.PrimaryButton}" Click="Save_Click" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- 发布目录里只留程序本体：Release 不产 pdb（Debug 保留符号便于调试） -->
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      平台声明：Core 里用到的是注册表、Shell COM、回收站这类 Windows 专有 API。
+      整个程序集只在 Windows 上跑，声明后 CA1416 不再逐处告警（避免一堆噪音把真警告淹掉），
+      调用方（App / Tests）按 Windows 目标编译即可照常调用。
+    -->
+    <AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
+      <_Parameter1>windows</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

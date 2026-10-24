@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+
+    <AssemblyName>JX3Cleaner</AssemblyName>
+    <RootNamespace>JX3Cleaner.App</RootNamespace>
+    <ApplicationIcon></ApplicationIcon>
+
+    <!-- 绿色版：单文件、可随文件夹整体搬移；配置与日志在 exe 同级目录 -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+
+    <!--
+      单文件压缩只在「自包含」成立：框架依赖版的运行时文件来自目标机，没有可压缩的捆绑包，
+      SDK 会直接报 NETSDK1176。所以这个开关跟着 $(SelfContained) 走，命令行覆盖时也不会踩坑。
+    -->
+    <EnableCompressionInSingleFile Condition="'$(SelfContained)' == 'true'">true</EnableCompressionInSingleFile>
+    <SatelliteResourceLanguages>zh-Hans;en</SatelliteResourceLanguages>
+    <DebugType>none</DebugType>
+
+    <!--
+      框架依赖形态下，目标机没装 .NET 10 桌面运行时时允许向上借用更高大版本的运行时
+      （例如只装了 .NET 11），少一类“打不开”的场面；启动自检会把这种情况记为提示。
+    -->
+    <RollForward>Major</RollForward>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 把发布形态烧进程序集：运行时的环境自检靠它判断“要不要系统装 .NET”，比猜路径可靠 -->
+    <AssemblyMetadata Include="DeploymentMode" Value="SelfContained" Condition="'$(SelfContained)' == 'true'" />
+    <AssemblyMetadata Include="DeploymentMode" Value="FrameworkDependent" Condition="'$(SelfContained)' != 'true'" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\JX3Cleaner.Core\JX3Cleaner.Core.csproj" />
+  </ItemGroup>
+
+</Project>

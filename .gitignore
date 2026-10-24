@@ -1,0 +1,23 @@
+# 构建产物
+bin/
+obj/
+publish/
+dist/
+
+# IDE
+.vs/
+*.user
+*.suo
+*.userosscache
+
+# 本地产物 / 日志
+*.log
+logs/
+
+# 本地项目数据（含本机路径与工作记录，不入库）
+.workbuddy/
+
+# 系统
+Thumbs.db
+desktop.ini
+.DS_Store

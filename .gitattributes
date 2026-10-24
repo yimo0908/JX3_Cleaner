@@ -1,0 +1,17 @@
+# 统一换行：仓库内一律 LF，检出时按平台转换
+* text=auto
+
+*.cs        text diff=csharp
+*.xaml      text
+*.csproj    text
+*.pubxml    text
+*.slnx      text
+*.json      text
+*.md        text
+*.gitignore text
+*.gitattributes text
+
+*.png       binary
+*.jpg       binary
+*.mp4       binary
+*.exe       binary

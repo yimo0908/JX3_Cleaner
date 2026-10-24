@@ -1,0 +1,18 @@
+﻿<UserControl x:Class="JX3Cleaner.App.Controls.NumberStepper"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Microsoft YaHei UI">
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <Button x:Name="MinusButton" Content="−" Width="32" Height="30" Padding="0"
+                FontSize="14" Click="Minus_Click" ToolTip="减少" />
+        <Border x:Name="ValueBox" Width="62" Height="30" Margin="6,0"
+                Background="White" BorderBrush="#D6D5D1" BorderThickness="1" CornerRadius="6">
+            <TextBlock x:Name="ValueText" Text="0" FontSize="13" Foreground="#1F1F1F"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <Button x:Name="PlusButton" Content="+" Width="32" Height="30" Padding="0"
+                FontSize="14" Click="Plus_Click" ToolTip="增加" />
+        <TextBlock x:Name="SuffixText" FontSize="12" Foreground="#595959"
+                   VerticalAlignment="Center" Margin="10,0,0,0" Text="个" />
+    </StackPanel>
+</UserControl>
