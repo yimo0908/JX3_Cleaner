@@ -9,7 +9,8 @@
 
     <AssemblyName>JX3Cleaner</AssemblyName>
     <RootNamespace>JX3Cleaner.App</RootNamespace>
-    <ApplicationIcon></ApplicationIcon>
+    <!-- exe 图标（资源管理器 / 任务栏）。源图见 Assets\JX3Cleaner.png，多尺寸 ICO 由它生成 -->
+    <ApplicationIcon>Assets\JX3Cleaner.ico</ApplicationIcon>
 
     <!-- 绿色版：单文件、可随文件夹整体搬移；配置与日志在 exe 同级目录 -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -36,6 +37,13 @@
     <!-- 把发布形态烧进程序集：运行时的环境自检靠它判断“要不要系统装 .NET”，比猜路径可靠 -->
     <AssemblyMetadata Include="DeploymentMode" Value="SelfContained" Condition="'$(SelfContained)' == 'true'" />
     <AssemblyMetadata Include="DeploymentMode" Value="FrameworkDependent" Condition="'$(SelfContained)' != 'true'" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 同一份图标也作为 WPF 资源，供各窗口的 Window.Icon 直接引用。
+         JX3Cleaner.png 只是 ico 的原始素材（1024px），不进程序集，避免白白多背 500+ KB -->
+    <Resource Include="Assets\JX3Cleaner.ico" />
+    <None Include="Assets\JX3Cleaner.png" />
   </ItemGroup>
 
   <ItemGroup>

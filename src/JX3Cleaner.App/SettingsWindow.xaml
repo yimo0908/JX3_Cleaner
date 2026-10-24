@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:JX3Cleaner.App.Controls"
         Title="设置" Width="760" SizeToContent="Height"
+        Icon="Assets/JX3Cleaner.ico"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False"
         FontFamily="Microsoft YaHei UI" Background="White" UseLayoutRounding="True">
 

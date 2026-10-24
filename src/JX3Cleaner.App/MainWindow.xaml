@@ -5,6 +5,7 @@
         xmlns:vm="clr-namespace:JX3Cleaner.App.ViewModels"
         xmlns:local="clr-namespace:JX3Cleaner.App"
         Title="剑网3 冗余数据清理" Height="800" Width="1180"
+        Icon="Assets/JX3Cleaner.ico"
         MinHeight="580" MinWidth="960"
         FontFamily="Microsoft YaHei UI" Background="White" UseLayoutRounding="True">
 

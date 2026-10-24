@@ -56,14 +56,29 @@ dotnet test  tests/JX3Cleaner.Tests           # 单元测试（135 条）
 ### 发布
 
 ```bash
-# 对外分发：自包含单文件（目标机无需安装任何 .NET 运行时）
+# 1) 自包含单文件（目标机无需安装任何 .NET 运行时）
 dotnet publish src/JX3Cleaner.App -p:PublishProfile=portable-selfcontained
-# 产物：dist/portable/JX3Cleaner.exe（约 62 MB）
+#   产物：dist/portable/JX3Cleaner.exe（约 62 MB）
+mv dist/portable/JX3Cleaner.exe dist/JX3Cleaner-v0.12-selfcontained.exe
+rmdir dist/portable
 
-# 体积敏感的自用构建（框架依赖，目标机需装 .NET 10 桌面运行时）
+# 2) 框架依赖单文件（目标机需装 .NET 10 桌面运行时）
 dotnet publish src/JX3Cleaner.App -c Release -p:SelfContained=false -o publish
-# 产物：publish/JX3Cleaner.exe（约 424 KB，单文件但不含运行时）
+#   产物：publish/JX3Cleaner.exe（约 724 KB，单文件但不含运行时）
+mv publish/JX3Cleaner.exe dist/JX3Cleaner-v0.12-framework-dependent.exe
+rmdir publish
 ```
+
+两种形态的 exe 都叫 `JX3Cleaner.exe`，**必须在发布后改名**，否则后一次会覆盖前一次。
+改完名 `dist/` 里同时留着两个版本：
+
+| 文件 | 体积 | 目标机 |
+|---|---|---|
+| `dist/JX3Cleaner-v0.12-selfcontained.exe` | 62,072,080 B | 免装 .NET |
+| `dist/JX3Cleaner-v0.12-framework-dependent.exe` | 740,968 B | 需 .NET 10 桌面运行时 |
+
+两个 exe 各自跑 `--shot out.png --settings`，设置页「运行环境」会分别显示 `自包含 · 正常` 与
+`框架依赖 · 正常` —— 发布形态由编译期元数据写死，不靠路径猜。
 
 > **单文件压缩只对自包含有效**：`EnableCompressionInSingleFile` 在 `App.csproj` 里跟着
 > `$(SelfContained)` 走。框架依赖版若也开着压缩会直接失败（`NETSDK1176`）。
@@ -71,6 +86,7 @@ dotnet publish src/JX3Cleaner.App -c Release -p:SelfContained=false -o publish
 ### 技术栈
 
 - .NET 10 + WPF（x64），`global.json` 固定 SDK
+- 应用图标：`Assets/JX3Cleaner.ico`（16→256 共 7 档），exe 图标与四个窗口的 `Window.Icon` 同源
 - 启动时强制软件渲染：`RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly`
 - 零第三方 UI 依赖，回收站走 Shell `IFileOperation`
 - Win11 圆角：控件模板（`Themes/Win11.xaml`）+ 窗口级 `DwmSetWindowAttribute`
@@ -91,6 +107,7 @@ src/
     Auditing/          审计日志
   JX3Cleaner.Diag/     控制台诊断工具（除 selftest 外不修改任何文件）
   JX3Cleaner.App/      WPF 界面
+    Assets/            应用图标（JX3Cleaner.ico 多尺寸 / JX3Cleaner.png 1024px 原始素材）
     SettingsWindow     设置页（含只读的「运行环境」行）
     RuntimeCheckDialog 环境自检失败弹窗
     Controls/          NumberStepper（不可键入的加减框）
@@ -102,6 +119,7 @@ tests/
 docs/
   JX3-Cleaner-设计与项目规划.md   设计文档
   ui-*.png                       界面截图（已打码）
+LICENSE                MIT
 ```
 
 ## 设置项
@@ -243,3 +261,10 @@ JX3Cleaner.exe --shot out.png --runtime          # 环境自检失败弹窗（�
 
 本项目按「现状」提供，删除操作不可逆（回收站可还原的部分除外）。仓库内的账号、角色名与路径示例均为化名，
 截图中的本机路径与角色名已打码。清理前请自行确认目标目录，因误删造成的数据损失由使用者自行承担。
+
+## 许可证
+
+[MIT](LICENSE) © 2026 yimo
+
+`src/JX3Cleaner.App/Assets/` 下的门徽图标来自个人素材库，仅作本项目标识使用；商标与美术资源权利归原作方所有。
+
