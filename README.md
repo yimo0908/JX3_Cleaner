@@ -6,6 +6,18 @@
 
 ![数据清理页](docs/ui-data.png)
 
+## 下载
+
+到 [Releases](https://github.com/yimo0908/JX3_Cleaner/releases/latest) 取用，两个单文件版本任选其一，双击即用、无需解压：
+
+| 文件 | 体积 | 目标机 |
+|---|---|---|
+| `JX3Cleaner-v0.12-selfcontained.exe` | 59.2 MiB | **推荐**。已打包 .NET 10 桌面运行时，免安装 |
+| `JX3Cleaner-v0.12-framework-dependent.exe` | 723 KiB | 需 .NET 10 桌面运行时，体积小、启动快 |
+
+要求 **Windows 10 1607 及以上、x64**。exe 未做代码签名，首次运行 SmartScreen 会提示「未知发布者」，
+选「更多信息 → 仍要运行」即可。
+
 ## 功能
 
 - **三组分类**：茗伊插件（聊天记录 / 战斗记录 / JCL战斗日志 / 金团记录 / 云团监 / 旧版团监）、懒人插件（插件本体 / 插件数据）、游戏数据（角色数据 / 家园蓝图 / 染发方案 / 设计站图片）
@@ -82,6 +94,8 @@ rmdir publish
 
 > **单文件压缩只对自包含有效**：`EnableCompressionInSingleFile` 在 `App.csproj` 里跟着
 > `$(SelfContained)` 走。框架依赖版若也开着压缩会直接失败（`NETSDK1176`）。
+
+发布时先打 `vX.Y` 标签，再把 `dist/` 下两个 exe 传到 GitHub Release 作附件（`dist/` 不进版本库）。
 
 ### 技术栈
 

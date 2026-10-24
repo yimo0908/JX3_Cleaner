@@ -22,7 +22,7 @@
 | v0.6 | 2026-10-24 | 三组划分（茗伊插件 / 懒人插件 / 游戏数据，左右两栏同步），取消「（茗伊插件）」后缀；分类行显示可点击的相对路径；顶级分类可直接勾选；旧版团监改为存在才勾选；角色数据有过期区服时可展开逐个大区勾选；「开始清理」常驻；图片浏览页落地 |
 | v0.7 | 2026-10-24 | 截图 / 幻境云图从数据清理页移除（扫描跳过），改由图片页勾选清理，复用同一执行链路；图片页按月分组 + 左侧时间导航；缩略图改行级虚拟化（实测 485 文件只实体化 55 张卡片）；底栏下放到各页 |
 | v0.8 | 2026-10-24 | 新增设置页（七项各一行 + 加减框 + 保存后关闭）；首次启动强制先过设置页；五项保留策略改为用户可调；时间筛选显示「已过滤 N 项」；全部窗口与控件适配 Win11 圆角；补 101 条单元测试 |
-| v0.12 | 2026-10-25 | 修复 `-p:SelfContained=false` 发布报 NETSDK1176：单文件压缩改为随 `$(SelfContained)` 条件开启；Core 声明 `SupportedOSPlatform(windows)`、App/Diag/Tests 统一 `net10.0-windows`，`CA1416` 与 `CS8604` 全部清零；Release 不产 pdb；开源整理：仓库内账号 / 角色名 / 路径示例统一化名，截图中的本机路径与角色名打码；新增应用图标（唐门面具素材，`Assets/JX3Cleaner.ico` 7 档尺寸），`Window.Icon` 与 exe 图标同源；许可证定为 MIT；`dist\` 同时存放自包含与框架依赖两个单文件 |
+| v0.12 | 2026-10-25 | 修复 `-p:SelfContained=false` 发布报 NETSDK1176：单文件压缩改为随 `$(SelfContained)` 条件开启；Core 声明 `SupportedOSPlatform(windows)`、App/Diag/Tests 统一 `net10.0-windows`，`CA1416` 与 `CS8604` 全部清零；Release 不产 pdb；开源整理：仓库内账号 / 角色名 / 路径示例统一化名，截图中的本机路径与角色名打码；新增应用图标（唐门面具素材，`Assets/JX3Cleaner.ico` 7 档尺寸），`Window.Icon` 与 exe 图标同源；许可证定为 MIT；`dist\` 同时存放自包含与框架依赖两个单文件；打 `v0.12` 标签并发 GitHub Release，两个 exe 作为附件（标题「v0.12 · 首个公开版本」） |
 | v0.11 | 2026-10-25 | 树行不再有「选中」语义：`TreeViewItem` 改为自写模板（不引用 `IsSelected`），点组标题或任意行不再出现蓝色背景 |
 | v0.10 | 2026-10-25 | 懒人插件 / 懒人插件数据 / 旧版团监数据 三类标题后补黄色「（已弃用）」；目录不存在的分类在左右两栏一律隐藏（左栏不再灰显禁用，组内全空时连组标题与分隔线一起隐藏）；测试增至 135 条 |
 | v0.9 | 2026-10-25 | 新增运行环境自检（R-10）：启动最早期判系统/位数/运行时，错误弹窗拦截、提示只记录；发布形态用程序集元数据判准；新增自包含单文件发布配置（61.7 MB，目标机免装 .NET）；`RollForward=Major`；设置页增加只读「运行环境」行；测试增至 127 条 |
@@ -639,6 +639,11 @@ files（按 LastWriteTimeUtc 倒序）
 | `-c Release -p:SelfContained=false -o publish` | `publish/JX3Cleaner.exe` | `JX3Cleaner-v0.12-framework-dependent.exe` | 724 KB | 需 .NET 10 桌面运行时 |
 
 两个单文件同名，所以发布后要各改一次名才能并存（v0.12 起 `dist\` 同时留两份）。
+
+**对外发布的载体**（v0.12 起）：`dist\` 在 `.gitignore` 里不入库，二进制只走 GitHub Release。
+流程是「打标签 → 建 Release → 传两个 exe 作附件」：标签用 `vX.Y`（与 `dist\` 文件名里的版本号一致），
+Release 标题写 `vX.Y · <一句话主题>`，正文按「下载表（体积 + 目标机）/ 功能 / 首次启动 / 已知限制 / 校验」分段。
+附件名沿用 `dist\` 里的文件名即可，`releases/latest/download/<文件名>` 便是一条稳定的常青下载链接。
 框架依赖版从 424 KB 长到 724 KB，是 exe 图标（7 档尺寸 ICO）同时以 Win32 资源与 WPF `Resource`
 各存一份所致 —— 图标只进程序集一次是做不到的，两者用途不同（资源管理器 vs `Window.Icon`）。
 
@@ -1359,6 +1364,8 @@ audio cache config data export font logs temporary userdata img lang licenses sr
 - 自包含单文件 62.1 MB（.NET 10 桌面运行时已打包），框架依赖单文件 724 KB
 - 两个 exe 分别跑 `--settings` 截图，设置页「运行环境」显示 `自包含 · 正常` / `框架依赖 · 正常`
   → 元数据随发布配置正确翻转
+- 已作为 `v0.12` Release 的附件对外发布（自包含 62,072,080 B / 框架依赖 740,968 B），
+  下载链接 `releases/download/v0.12/<文件名>` 逐字节核对过 `Content-Range` 与本地文件一致
 
 ### 14.4 未完成
 
