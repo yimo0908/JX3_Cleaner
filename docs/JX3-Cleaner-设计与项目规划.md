@@ -1372,8 +1372,9 @@ audio cache config data export font logs temporary userdata img lang licenses sr
   → 元数据随发布配置正确翻转
 - `v0.13` 出包实测：自包含 62,076,197 B（SHA256 `9427ffd1…86c6af44`）、
   框架依赖 748,136 B（SHA256 `bc3c811d…f6f6a137`），两个 exe 各自启动截图均显示正确的发布形态
-- 已作为 `v0.12` Release 的附件对外发布（自包含 62,072,080 B / 框架依赖 740,968 B），
-  下载链接 `releases/download/v0.12/<文件名>` 逐字节核对过 `Content-Range` 与本地文件一致
+- 已作为 `v0.13` Release 的附件对外发布（自包含 62,076,197 B / 框架依赖 748,136 B），
+  标题「v0.13 · 修掉旧区服误删整账号」，标记 latest；附件状态由 API 复核为 `uploaded` 且字节数一致
+- 更早的 `v0.12` Release（自包含 62,072,080 B / 框架依赖 740,968 B）保留在标签列表里
 
 ### 14.4 未完成
 
