@@ -134,7 +134,8 @@ public sealed class ScanEngineTests
             client.File($@"{rel}\r-{i}.meta.jx3dat", 50, stamp);
         }
 
-        var node = Category(Scan(client, keep: new KeepSettings { TeamMonGroups = 2 }), CleanCategory.CloudTeamMon);
+        var result = Scan(client, keep: new KeepSettings { TeamMonGroups = 2 });
+        var node = Category(result, CleanCategory.CloudTeamMon);
 
         Assert.Equal(4, node.Children.Count);
 
@@ -144,6 +145,11 @@ public sealed class ScanEngineTests
 
         Assert.All(node.Children.Where(c => !c.Flags.HasFlag(NodeFlags.Retained)),
             n => Assert.Equal(2, n.Targets.Count));
+
+        // 保留策略排除的条目单独统计（2 组 × 2 个文件）：与时间限制的排除量是两个数
+        Assert.Equal(4, result.Retained.Count);
+        Assert.Equal(300, result.Retained.Bytes);
+        Assert.True(result.Filtered.IsEmpty);
     }
 
     // ---------------- 角色数据 ----------------
@@ -171,13 +177,68 @@ public sealed class ScanEngineTests
 
         var node = Assert.Single(Category(Scan(client), CleanCategory.RoleData).Children);
 
-        Assert.True(node.IsLegacyRegion);
+        // 账号行本身不是过期区服，只是「下面含旧大区」：两个标记必须分开，
+        // 否则只勾旧大区时会被误判成「要删整个账号」
+        Assert.False(node.IsLegacyRegion);
+        Assert.True(node.HasLegacyChild);
         Assert.Equal("电信五区", node.LegacyDetail);
         Assert.Contains("角色甲", node.RoleSummary);
 
         var legacyChild = Assert.Single(node.Children);
         Assert.Equal("电信五区", legacyChild.Title);
         Assert.True(legacyChild.IsLegacyRegion);
+        Assert.False(legacyChild.HasLegacyChild);
+    }
+
+    [Fact]
+    public void 账号行体积不被过期大区覆盖()
+    {
+        using var client = new TempClient();
+        client.File(@"userdata\acc\电信区\示例服\角色甲\a.dat", 1000);
+        client.File(@"userdata\acc\电信五区\旧服\角色乙\b.dat", 500);
+
+        var node = Assert.Single(Category(Scan(client), CleanCategory.RoleData).Children);
+
+        // 账号行的口径是「整个账号占用」，不能被子节点求和覆盖成只剩旧大区那 500 字节
+        Assert.Equal(1500, node.SizeBytes);
+        Assert.Equal(1500, node.CleanableBytes);
+
+        var legacyChild = Assert.Single(node.Children);
+        Assert.Equal(500, legacyChild.SizeBytes);
+        Assert.Equal(500, legacyChild.CleanableBytes);
+    }
+
+    [Fact]
+    public void 过期区服子节点只持有自己的目录()
+    {
+        using var client = new TempClient();
+        var accountDir = client.Dir(@"userdata\acc");
+        client.Dir(@"userdata\acc\电信区\示例服\角色甲");
+        client.Dir(@"userdata\acc\电信五区\旧服\角色乙");
+
+        var node = Assert.Single(Category(Scan(client), CleanCategory.RoleData).Children);
+        var legacyChild = Assert.Single(node.Children);
+
+        var legacyDir = Path.Combine(client.Root.ZhcnDir, @"userdata\acc\电信五区");
+
+        Assert.True(Assert.Single(legacyChild.Targets).IsDirectory);
+        Assert.Equal(legacyDir, legacyChild.Targets[0].Path);
+        Assert.NotEqual(accountDir, legacyChild.Targets[0].Path);
+    }
+
+    [Fact]
+    public void 整目录被时间限制挡住时不再默认勾选()
+    {
+        using var client = new TempClient();
+        // 两天前才改过 → 「只清理 30 天前」会把它排除
+        client.File(@"interface\LR_Plugin\plugin.dll", 512, Now.AddDays(-2).ToUniversalTime());
+
+        var node = Category(Scan(client, TimeWindow.Days30), CleanCategory.LazyPlugin);
+
+        // 勾着却删不了任何东西是纯粹的误导：没条目就不该默认勾选
+        Assert.Empty(node.Targets);
+        Assert.False(node.DefaultSelected);
+        Assert.Single(Category(Scan(client, TimeWindow.All), CleanCategory.LazyPlugin).Targets);
     }
 
     [Fact]

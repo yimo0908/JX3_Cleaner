@@ -100,6 +100,87 @@ public sealed class CleanPlanBuilderTests
         Assert.Empty(plan.Items);
         Assert.Contains("受保护", Assert.Single(plan.Rejected).Reason);
     }
+
+    // ---------------- 勾选来源（父节点既是分组又是整包删除目标） ----------------
+
+    /// <summary>账号行 + 一个过期大区子节点，模拟「角色数据」里最常见的那种结构。</summary>
+    private static (ScanNode Account, ScanNode Legacy) LegacyAccount(TempClient client)
+    {
+        var accountDir = client.Dir(@"userdata\acc");
+        var legacyDir = client.Dir(@"userdata\acc\电信五区\旧服\角色乙");
+
+        var account = new ScanNode
+        {
+            Kind = NodeKind.Account,
+            Title = "acc",
+            FullPath = accountDir,
+            SizeBytes = 1500,
+            Flags = NodeFlags.HasLegacyChild,
+            Targets = { new TargetItem(accountDir, 1000, DateTime.UtcNow, true) }
+        };
+
+        var legacy = account.Add(new ScanNode
+        {
+            Kind = NodeKind.Region,
+            Title = "电信五区",
+            FullPath = legacyDir,
+            SizeBytes = 500,
+            Flags = NodeFlags.LegacyRegion,
+            Targets = { new TargetItem(legacyDir, 500, DateTime.UtcNow, true) }
+        });
+
+        return (account, legacy);
+    }
+
+    [Fact]
+    public void 只勾过期大区时不会连带删掉整个账号()
+    {
+        using var client = new TempClient();
+        var (account, legacy) = LegacyAccount(client);
+
+        // 账号行的勾选状态是从子项推导出来的 → 它自己的「整账号目录」条目不算数
+        var plan = CleanPlanBuilder.Build(
+        [
+            new SelectedNode(account, IncludeOwnTargets: false),
+            new SelectedNode(legacy)
+        ], new PathGuard(client.Root));
+
+        var item = Assert.Single(plan.Items);
+        Assert.Equal(legacy.FullPath, item.Path);
+        Assert.Equal(500, plan.TotalBytes);
+    }
+
+    [Fact]
+    public void 直接勾选账号行时仍按整个账号删除()
+    {
+        using var client = new TempClient();
+        var (account, legacy) = LegacyAccount(client);
+
+        var plan = CleanPlanBuilder.Build(
+        [
+            new SelectedNode(account, IncludeOwnTargets: true),
+            new SelectedNode(legacy)
+        ], new PathGuard(client.Root));
+
+        // 整个账号目录覆盖了旧大区，收敛成一条
+        var item = Assert.Single(plan.Items);
+        Assert.Equal(account.FullPath, item.Path);
+    }
+
+    [Fact]
+    public void Collect按父目录收敛且不做路径校验()
+    {
+        using var client = new TempClient();
+        var (account, legacy) = LegacyAccount(client);
+
+        var items = CleanPlanBuilder.Collect(
+        [
+            new SelectedNode(account, IncludeOwnTargets: false),
+            new SelectedNode(legacy)
+        ]);
+
+        Assert.Equal(legacy.FullPath, Assert.Single(items).Path);
+    }
 }
 public sealed class PathGuardTests
 {

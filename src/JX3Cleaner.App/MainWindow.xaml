@@ -63,6 +63,11 @@
             <Setter Property="HorizontalContentAlignment" Value="Left" />
             <Setter Property="Padding" Value="0,1" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <!--
+                左栏「数据类型」取消勾选 = 该分类从树里隐藏。
+                用可见性而不是重建树：重建会把用户已经勾好的条目全部重置成默认值。
+            -->
+            <Setter Property="Visibility" Value="{Binding IsVisible, Converter={StaticResource BoolToVis}}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type TreeViewItem}">
@@ -136,6 +141,13 @@
                             <TextBlock Text="过期区服" FontSize="11" Foreground="#B26A00" />
                         </Border>
 
+                        <!-- 账号行：下面还有过期大区，勾选它才会连带删除 -->
+                        <Border Background="#FFF4E5" CornerRadius="9" Padding="7,1" Margin="7,0,0,0"
+                                VerticalAlignment="Center"
+                                Visibility="{Binding HasLegacyChild, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="含过期区服" FontSize="11" Foreground="#B26A00" />
+                        </Border>
+
                         <Border Background="#F1EFE8" CornerRadius="9" Padding="7,1" Margin="7,0,0,0"
                                 VerticalAlignment="Center"
                                 Visibility="{Binding IsIncomplete, Converter={StaticResource BoolToVis}}">
@@ -157,7 +169,8 @@
                     </StackPanel>
 
                     <TextBlock Grid.Column="2" Text="{Binding SizeText}" FontSize="11" Foreground="#8C8C8C"
-                               VerticalAlignment="Center" Margin="12,0,4,0" />
+                               VerticalAlignment="Center" Margin="12,0,4,0"
+                               ToolTip="{Binding SizeTooltip}" ToolTipService.ShowOnDisabled="True" />
                 </Grid>
             </Border>
         </HierarchicalDataTemplate>
@@ -220,7 +233,7 @@
 
                                 <Border Height="1" Background="#E5E5E3" Margin="0,14,0,14" />
 
-                                <TextBlock Text="文件时间" FontSize="12" FontWeight="Medium"
+                                <TextBlock Text="时间限制" FontSize="12" FontWeight="Medium"
                                            Foreground="#595959" Margin="0,0,0,7" />
                                 <ComboBox x:Name="WindowBox" FontSize="12" SelectionChanged="WindowBox_SelectionChanged">
                                     <ComboBoxItem Content="全部" Tag="0" IsSelected="True" />
@@ -231,7 +244,7 @@
                                     <ComboBoxItem Content="只清理 365 天前" Tag="365" />
                                 </ComboBox>
 
-                                <!-- 时间筛选结果提示：有 N 项因时间范围被排除 -->
+                                <!-- 保留策略与时间限制各自排除了多少：两个旋钮要分开说清 -->
                                 <TextBlock x:Name="FilterHintText" FontSize="11" Foreground="#8C8C8C"
                                            Margin="2,7,0,0" TextWrapping="Wrap" Visibility="Collapsed" />
 

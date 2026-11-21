@@ -46,6 +46,9 @@ public sealed class ScanResult
     /// <summary>因「文件时间」筛选而被排除在清理范围外的条目（条数与体积）。</summary>
     public FilterStats Filtered { get; } = new();
 
+    /// <summary>因保留策略（最近 N 个 / N 天）而不进清理范围的条目。</summary>
+    public FilterStats Retained { get; } = new();
+
     public long TotalBytes => Categories.Sum(c => c.SizeBytes);
     public int TotalFiles => Categories.Sum(c => c.FileCount);
 
@@ -170,7 +173,7 @@ public sealed class ScanEngine
                 SizeBytes = files.Sum(f => f.Length),
                 FileCount = files.Count,
                 LastWriteUtc = files.Max(f => f.LastWriteTimeUtc),
-                DefaultSelected = def.DefaultSelected && candidates.Count > 0
+                DefaultSelected = SelectionDefaults.Resolve(def, candidates.Count)
             };
 
             if (kept.Count > 0 && rule.IsActive)
@@ -181,6 +184,7 @@ public sealed class ScanEngine
 
             result.Filtered.Add(split.FilteredCount,
                 split.FilteredIndexes.Sum(i => files[i].Length));
+            result.Retained.Add(split.KeepCount, kept.Sum(f => f.Length));
 
             categoryNode.Add(node);
         }
@@ -230,13 +234,13 @@ public sealed class ScanEngine
                         | (retained ? NodeFlags.Retained : NodeFlags.None),
                 SizeBytes = g.SizeBytes,
                 FileCount = g.Files.Count,
-                LastWriteUtc = g.LastWriteUtc,
-                DefaultSelected = false
+                LastWriteUtc = g.LastWriteUtc
             };
 
             if (retained)
             {
                 // 保留的组不产生任何目标
+                result.Retained.Add(g.Files.Count, g.SizeBytes);
             }
             else if (opt.WithinWindow(g.LastWriteUtc))
             {
@@ -251,6 +255,7 @@ public sealed class ScanEngine
                 result.Filtered.Add(g.Files.Count, g.SizeBytes);
             }
 
+            node.DefaultSelected = SelectionDefaults.Resolve(def, node.Targets.Count);
             categoryNode.Add(node);
         }
 
@@ -295,10 +300,13 @@ public sealed class ScanEngine
                     Flags = NodeFlags.InvalidAccount,
                     SizeBytes = stat.SizeBytes,
                     FileCount = stat.FileCount,
-                    LastWriteUtc = stat.LastWriteUtc,
-                    DefaultSelected = true
+                    LastWriteUtc = stat.LastWriteUtc
                 };
                 bad.Targets.Add(new TargetItem(accountDir, stat.SizeBytes, stat.LastWriteUtc, true));
+
+                // 纯垃圾数据，默认勾选（与「角色数据」分类本身的默认值无关）
+                bad.DefaultSelected = SelectionDefaults.Resolve(true, bad.Targets.Count);
+
                 categoryNode.Add(bad);
                 continue;
             }
@@ -320,11 +328,12 @@ public sealed class ScanEngine
                 LegacyDetail = legacy.Count > 0 ? string.Join("、", legacy) : null,
                 FullPath = accountDir,
                 Risk = def.Risk,
-                Flags = legacy.Count > 0 ? NodeFlags.LegacyRegion : NodeFlags.None,
+                // 账号行本身不是过期区服：用 HasLegacyChild 表达「下面还有旧大区」，
+                // 界面会补一个不同的角标，确认文案也据此判断范围
+                Flags = legacy.Count > 0 ? NodeFlags.HasLegacyChild : NodeFlags.None,
                 SizeBytes = stat.SizeBytes,
                 FileCount = stat.FileCount,
-                LastWriteUtc = stat.LastWriteUtc,
-                DefaultSelected = false
+                LastWriteUtc = stat.LastWriteUtc
             };
 
             if (opt.WithinWindow(stat.LastWriteUtc))
@@ -336,6 +345,8 @@ public sealed class ScanEngine
                 // 角色数据的时间单位就是账号文件夹本身，子项不再重复计数
                 result.Filtered.Add(1, stat.SizeBytes);
             }
+
+            node.DefaultSelected = SelectionDefaults.Resolve(def, node.Targets.Count);
 
             // 有过期区服时允许展开，逐个大区单独勾选（其余大区不生成节点）
             foreach (var regionDir in regions.Where(r => !_regions.IsValid(Path.GetFileName(r))))
@@ -353,6 +364,7 @@ public sealed class ScanEngine
                     SizeBytes = regionStat.SizeBytes,
                     FileCount = regionStat.FileCount,
                     LastWriteUtc = regionStat.LastWriteUtc,
+                    // 过期区服从不默认勾选：必须由用户在确认框里逐个表态
                     DefaultSelected = false
                 };
 
@@ -420,16 +432,17 @@ public sealed class ScanEngine
         categoryNode.SizeBytes = stat.SizeBytes;
         categoryNode.FileCount = stat.FileCount;
         categoryNode.LastWriteUtc = stat.LastWriteUtc;
-        categoryNode.DefaultSelected = def.DefaultSelected;   // 存在才勾选
 
         if (!opt.WithinWindow(stat.LastWriteUtc))
         {
-            // 整目录只有一个时间基准：被时间窗口挡住就整目录都不进清理范围
+            // 整目录只有一个时间基准：被时间窗口挡住就整目录都不进清理范围，
+            // 这时不能默认勾选——勾着却清不了任何东西是纯粹的误导
             result.Filtered.Add(1, stat.SizeBytes);
             return categoryNode;
         }
 
         categoryNode.Targets.Add(new TargetItem(dir, stat.SizeBytes, stat.LastWriteUtc, true));
+        categoryNode.DefaultSelected = SelectionDefaults.Resolve(def, categoryNode.Targets.Count);
         return categoryNode;
     }
 
@@ -496,7 +509,7 @@ public sealed class ScanEngine
                 SizeBytes = f.Length,
                 FileCount = 1,
                 LastWriteUtc = f.LastWriteTimeUtc,
-                DefaultSelected = def.DefaultSelected && canClean,
+                DefaultSelected = SelectionDefaults.Resolve(def, canClean ? 1 : 0),
                 Note = i < split.KeepCount && rule.IsActive ? rule.Describe() : null
             };
 
@@ -507,6 +520,7 @@ public sealed class ScanEngine
         }
 
         result.Filtered.Add(split.FilteredCount, split.FilteredIndexes.Sum(i => files[i].Length));
+        result.Retained.Add(split.KeepCount, files.Take(split.KeepCount).Sum(f => f.Length));
 
         return FinishCategory(categoryNode, def, result, keepWhenEmpty: true);
     }

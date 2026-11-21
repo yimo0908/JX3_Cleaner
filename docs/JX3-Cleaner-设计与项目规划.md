@@ -4,7 +4,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 文档版本 | **v0.12（修复框架依赖发布 + 警告清零）** |
+| 文档版本 | **v0.13（旧区服清理修正 + 保留/勾选语义收口）** |
 | 参考依据 | JX3BOX《剑网3客户端（V4版本）瘦身手册【非官方！】》第 2 节「手动清理」 |
 | 结构依据 | 2026-10-24 实机客户端结构核对（只记录目录形态，**不含任何本机路径，不写入项目默认值**） |
 | 目标平台 | Windows 10 1809+ / Windows 11，x64 |
@@ -22,6 +22,7 @@
 | v0.6 | 2026-10-24 | 三组划分（茗伊插件 / 懒人插件 / 游戏数据，左右两栏同步），取消「（茗伊插件）」后缀；分类行显示可点击的相对路径；顶级分类可直接勾选；旧版团监改为存在才勾选；角色数据有过期区服时可展开逐个大区勾选；「开始清理」常驻；图片浏览页落地 |
 | v0.7 | 2026-10-24 | 截图 / 幻境云图从数据清理页移除（扫描跳过），改由图片页勾选清理，复用同一执行链路；图片页按月分组 + 左侧时间导航；缩略图改行级虚拟化（实测 485 文件只实体化 55 张卡片）；底栏下放到各页 |
 | v0.8 | 2026-10-24 | 新增设置页（七项各一行 + 加减框 + 保存后关闭）；首次启动强制先过设置页；五项保留策略改为用户可调；时间筛选显示「已过滤 N 项」；全部窗口与控件适配 Win11 圆角；补 101 条单元测试 |
+| v0.13 | 2026-11-21 | 修正旧区服清理误删：勾选来源显式化（`TreeItemVm.CheckedExplicitly`），只勾过期大区时不再连带删除整账号有效区服；`NodeFlags` 拆出 `HasLegacyChild` 与 `LegacyRegion`，`Aggregate()` 不再用子节点覆盖自助条目体积；新增 `SelectionDefaults` 作为初始勾选唯一判据（消除「勾着但 0 项」）；「保留策略排除」与「时间限制排除」分两行提示；「文件时间」改名「时间限制」并真正持久化到 `AppSettings.TimeWindow`；左栏分类改为显隐开关（不再重建树，手动勾选不丢）；体积列改为可清理量、总占用进 tooltip；发布补 `IL3000` 抑制，自包含与框架依赖两条命令均 0 警告；测试 147 条 |
 | v0.12 | 2026-10-25 | 修复 `-p:SelfContained=false` 发布报 NETSDK1176：单文件压缩改为随 `$(SelfContained)` 条件开启；Core 声明 `SupportedOSPlatform(windows)`、App/Diag/Tests 统一 `net10.0-windows`，`CA1416` 与 `CS8604` 全部清零；Release 不产 pdb；开源整理：仓库内账号 / 角色名 / 路径示例统一化名，截图中的本机路径与角色名打码；新增应用图标（唐门面具素材，`Assets/JX3Cleaner.ico` 7 档尺寸），`Window.Icon` 与 exe 图标同源；许可证定为 MIT；`dist\` 同时存放自包含与框架依赖两个单文件；打 `v0.12` 标签并发 GitHub Release，两个 exe 作为附件（标题「v0.12 · 首个公开版本」） |
 | v0.11 | 2026-10-25 | 树行不再有「选中」语义：`TreeViewItem` 改为自写模板（不引用 `IsSelected`），点组标题或任意行不再出现蓝色背景 |
 | v0.10 | 2026-10-25 | 懒人插件 / 懒人插件数据 / 旧版团监数据 三类标题后补黄色「（已弃用）」；目录不存在的分类在左右两栏一律隐藏（左栏不再灰显禁用，组内全空时连组标题与分隔线一起隐藏）；测试增至 135 条 |
@@ -635,8 +636,8 @@ files（按 LastWriteTimeUtc 倒序）
 
 | 命令 | 发布目录产物 | 改名后（`dist\` 内一并存放） | 体积 | 目标机 |
 |---|---|---|---|---|
-| `-p:PublishProfile=portable-selfcontained` | `dist/portable/JX3Cleaner.exe` | `JX3Cleaner-v0.12-selfcontained.exe` | 62.1 MB | 免装 .NET |
-| `-c Release -p:SelfContained=false -o publish` | `publish/JX3Cleaner.exe` | `JX3Cleaner-v0.12-framework-dependent.exe` | 724 KB | 需 .NET 10 桌面运行时 |
+| `-p:PublishProfile=portable-selfcontained` | `dist/portable/JX3Cleaner.exe` | `JX3Cleaner-v0.13-selfcontained.exe` | 62.1 MB | 免装 .NET |
+| `-c Release -p:SelfContained=false -o publish` | `publish/JX3Cleaner.exe` | `JX3Cleaner-v0.13-framework-dependent.exe` | 731 KB | 需 .NET 10 桌面运行时 |
 
 两个单文件同名，所以发布后要各改一次名才能并存（v0.12 起 `dist\` 同时留两份）。
 
@@ -1358,12 +1359,14 @@ audio cache config data export font logs temporary userdata img lang licenses sr
 
 `dotnet test tests/JX3Cleaner.Tests`：135 通过 / 0 失败。
 
-发布产物（v0.9，v0.12 补图标后更新体积）：
+发布产物（v0.9，v0.12 补图标后更新体积，v0.13 起体积随代码变化）：
 
 - `dotnet publish src/JX3Cleaner.App -p:PublishProfile=portable-selfcontained`
-- 自包含单文件 62.1 MB（.NET 10 桌面运行时已打包），框架依赖单文件 724 KB
+- 自包含单文件 62.1 MB（.NET 10 桌面运行时已打包），框架依赖单文件 731 KB
 - 两个 exe 分别跑 `--settings` 截图，设置页「运行环境」显示 `自包含 · 正常` / `框架依赖 · 正常`
   → 元数据随发布配置正确翻转
+- `v0.13` 出包实测：自包含 62,075,684 B（SHA256 `f0673c9e…f378739a`）、
+  框架依赖 748,136 B（SHA256 `57748c92…9bfd13c0`），两个 exe 各自启动截图均显示正确的发布形态
 - 已作为 `v0.12` Release 的附件对外发布（自包含 62,072,080 B / 框架依赖 740,968 B），
   下载链接 `releases/download/v0.12/<文件名>` 逐字节核对过 `Content-Range` 与本地文件一致
 

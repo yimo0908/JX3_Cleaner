@@ -88,6 +88,13 @@ public sealed class CleanerService
         return CleanPlanBuilder.Build(selected, new PathGuard(Root));
     }
 
+    /// <summary>带上「自有条目是否算数」的选择：父节点的条目只在被直接勾选时生效。</summary>
+    public CleanPlan BuildPlan(IEnumerable<SelectedNode> selected)
+    {
+        if (Root is null) throw new InvalidOperationException("尚未定位客户端目录");
+        return CleanPlanBuilder.Build(selected, new PathGuard(Root));
+    }
+
     public static ICleanExecutor CreateExecutor(CleanMode mode) =>
         mode == CleanMode.RecycleBin ? new RecycleBinExecutor() : new DirectDeleteExecutor();
 

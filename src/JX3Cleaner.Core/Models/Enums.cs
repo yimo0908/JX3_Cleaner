@@ -52,7 +52,7 @@ public enum NodeFlags
     None = 0,
     /// <summary>账号目录下无任何区服子目录</summary>
     InvalidAccount = 1,
-    /// <summary>大区名不在白名单内，疑似区服合并前的残留</summary>
+    /// <summary>该节点本身就是过期大区（大区名不在白名单内）</summary>
     LegacyRegion = 2,
     /// <summary>茗伊账号目录未能解析出玩家名</summary>
     UnknownOwner = 4,
@@ -62,7 +62,13 @@ public enum NodeFlags
     Missing = 16,
 
     /// <summary>受保留策略保护（如最近 2 个聊天记录），"全选"时跳过</summary>
-    Retained = 32
+    Retained = 32,
+
+    /// <summary>
+    /// 账号目录下含过期大区。与 <see cref="LegacyRegion"/> 分开：
+    /// 账号行不是过期区服，但勾选它会连带删掉这些大区，需要单独提醒。
+    /// </summary>
+    HasLegacyChild = 64
 }
 
 public enum RiskLevel

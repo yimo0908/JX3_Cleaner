@@ -6,6 +6,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <!-- 勾选状态机在界面层的 TreeItemVm 里（父子三态 + 勾选来源），必须连 WPF 一起引 -->
+    <UseWPF>true</UseWPF>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,11 +19,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- WPF 的隐式 using 集合里没有 System.IO，测试大量用 Path / File / Directory -->
+    <Using Include="System.IO" />
     <Using Include="Xunit" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\JX3Cleaner.Core\JX3Cleaner.Core.csproj" />
+    <ProjectReference Include="..\..\src\JX3Cleaner.App\JX3Cleaner.App.csproj" />
   </ItemGroup>
 
 </Project>

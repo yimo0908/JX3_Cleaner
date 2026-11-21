@@ -132,10 +132,13 @@ static void PrintNodes(IEnumerable<ScanNode> nodes, int depth)
         var indent = new string(' ', depth * 2);
         var flag = n.Flags.HasFlag(NodeFlags.InvalidAccount) ? " [错误账号]"
                  : n.Flags.HasFlag(NodeFlags.LegacyRegion) ? " [过期区服]"
+                 : n.Flags.HasFlag(NodeFlags.HasLegacyChild) ? " [含过期区服]"
                  : n.Flags.HasFlag(NodeFlags.IncompleteGroup) ? " [不完整]"
                  : string.Empty;
 
-        Console.WriteLine($"{indent}{n.Title}{flag}  ({TargetItem.FormatSize(n.SizeBytes)}/{n.FileCount})"
+        // 括号里给出「本次能清掉多少」，与总占用分开：两者口径不同
+        Console.WriteLine($"{indent}{n.Title}{flag}  ({TargetItem.FormatSize(n.SizeBytes)}/{n.FileCount}"
+                          + $"，可清理 {n.CleanableCount} 项 {TargetItem.FormatSize(n.CleanableBytes)})"
                           + (n.Note is null ? "" : $"  {n.Note}")
                           + (n.DefaultSelected ? "  ✓默认" : ""));
 

@@ -31,6 +31,7 @@ public partial class MainWindow : Window
 
     private readonly ObservableCollection<TreeItemVm> _roots = [];
     private readonly Dictionary<CleanCategory, CheckBox> _categoryBoxes = [];
+    private readonly Dictionary<CleanCategory, TreeItemVm> _categoryVms = [];
     private readonly List<FilterGroupUi> _filterGroups = [];
     private readonly HashSet<string> _confirmedLegacy = new(StringComparer.OrdinalIgnoreCase);
 
@@ -40,6 +41,7 @@ public partial class MainWindow : Window
     private bool _busy;
     private bool _loadingMode;
     private bool _syncingMode;
+    private bool _syncingWindow;
 
     public MainWindow()
     {
@@ -92,13 +94,22 @@ public partial class MainWindow : Window
     {
         if (App.ShotDays <= 0) return;
 
-        foreach (var item in WindowBox.Items.OfType<ComboBoxItem>())
+        // 只改下拉框，扫描交给紧随其后的 Loaded 流程，避免重复扫一遍
+        _syncingWindow = true;
+        try
         {
-            if ((string?)item.Tag == App.ShotDays.ToString())
+            foreach (var item in WindowBox.Items.OfType<ComboBoxItem>())
             {
-                WindowBox.SelectedItem = item;
-                return;
+                if ((string?)item.Tag == App.ShotDays.ToString())
+                {
+                    WindowBox.SelectedItem = item;
+                    return;
+                }
             }
+        }
+        finally
+        {
+            _syncingWindow = false;
         }
     }
 
@@ -112,21 +123,61 @@ public partial class MainWindow : Window
         MediaPage.Attach(Service.Root);
     }
 
-    /// <summary>把设置里的默认清理方式铺到界面上（两页共用同一个设置）。</summary>
+    /// <summary>把设置里的默认清理方式与时间限制铺到界面上（两页共用同一份设置）。</summary>
     private void ApplySettingsToUi()
     {
         _loadingMode = true;
+        _syncingWindow = true;
         try
         {
             var mode = Service.Settings.Current.DefaultMode;
             RecycleRadio.IsChecked = mode == CleanMode.RecycleBin;
             DeleteRadio.IsChecked = mode == CleanMode.DirectDelete;
             MediaPage.SetMode(mode);
+
+            // 时间限制是持久化设置：上次选「只清理 90 天前」，下次启动仍是它
+            ApplyWindowBox(Service.Settings.Current.TimeWindow);
         }
         finally
         {
+            _syncingWindow = false;
             _loadingMode = false;
         }
+    }
+
+    /// <summary>下拉框与设置枚举的互转（Tag 是「天数」，枚举值是命名项，不能直接强转）。</summary>
+    private static string TagOf(TimeWindow window) => window switch
+    {
+        TimeWindow.Days7 => "7",
+        TimeWindow.Days30 => "30",
+        TimeWindow.Days90 => "90",
+        TimeWindow.Days180 => "180",
+        TimeWindow.Days365 => "365",
+        _ => "0"
+    };
+
+    private void ApplyWindowBox(TimeWindow window)
+    {
+        var tag = TagOf(window);
+
+        foreach (var item in WindowBox.Items.OfType<ComboBoxItem>())
+        {
+            if ((string?)item.Tag == tag)
+            {
+                WindowBox.SelectedItem = item;
+                return;
+            }
+        }
+    }
+
+    /// <summary>把当前下拉框的选择写回设置（只在用户真的改了的时候落盘）。</summary>
+    private void PersistWindow()
+    {
+        var window = SelectedWindow();
+        if (Service.Settings.Current.TimeWindow == window) return;
+
+        Service.Settings.Current.TimeWindow = window;
+        Service.Settings.Save();
     }
 
     /// <summary>调试断言：把当前窗口渲染为 PNG 后退出。</summary>
@@ -406,13 +457,34 @@ public partial class MainWindow : Window
     private void CategoryFilter_Changed(object sender, RoutedEventArgs e)
     {
         if (!_ready) return;
-        RebuildTree();
+
+        // 只切换可见性：重建树会把用户已勾好的条目重置成默认值
+        ApplyCategoryVisibility();
         UpdateSummary();
+    }
+
+    /// <summary>左栏分类开关 → 树里该分类的显隐。勾选状态原样保留，来回切换不丢。</summary>
+    private void ApplyCategoryVisibility()
+    {
+        foreach (var (id, vm) in _categoryVms)
+        {
+            if (_categoryBoxes.TryGetValue(id, out var box))
+                vm.IsVisible = box.IsChecked == true;
+        }
+
+        // 组内分类全被藏起来时，组标题也不该单独留一行
+        foreach (var groupVm in _roots)
+            if (groupVm.IsGroupHeader)
+                groupVm.IsVisible = groupVm.Children.Any(c => c.IsVisible);
     }
 
     private void WindowBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!_ready || _scan is null) return;
+        if (!_ready || _scan is null || _syncingWindow) return;
+
+        // 用户改了就记住，下次启动沿用；截图调试不写配置
+        if (App.ShotDays <= 0) PersistWindow();
+
         _ = ScanAsync();
     }
 
@@ -428,21 +500,30 @@ public partial class MainWindow : Window
         }
         : TimeWindow.All;
 
-    /// <summary>时间筛选提示：被排除的条目数与体积，显示在下拉框正下方。</summary>
+    /// <summary>
+    /// 排除提示：保留策略与时间限制是两回事，必须分开报，
+    /// 否则用户只看到「已过滤 0 项」，却不知道为什么 4 个文件只清了 2 个。
+    /// </summary>
     private void UpdateFilterHint(ScanResult? result)
     {
-        if (result is null || SelectedWindow() == TimeWindow.All)
+        if (result is null)
         {
             FilterHintText.Visibility = Visibility.Collapsed;
             return;
         }
 
-        var filtered = result.Filtered;
-        FilterHintText.Text = filtered.Count == 0
-            ? "没有条目被该时间范围排除"
-            : $"已过滤 {filtered.Count} 项，约 {TargetItem.FormatSize(filtered.Bytes)}";
+        var parts = new List<string>();
 
-        FilterHintText.Visibility = Visibility.Visible;
+        if (result.Retained.Count > 0)
+            parts.Add($"按保留策略跳过 {result.Retained.Count} 项，约 {TargetItem.FormatSize(result.Retained.Bytes)}");
+
+        if (SelectedWindow() != TimeWindow.All)
+            parts.Add(result.Filtered.Count == 0
+                ? "没有条目被该时间范围排除"
+                : $"按时间限制排除 {result.Filtered.Count} 项，约 {TargetItem.FormatSize(result.Filtered.Bytes)}");
+
+        FilterHintText.Text = string.Join("；", parts);
+        FilterHintText.Visibility = parts.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
     }
 
     // ---------------- 树 ----------------
@@ -450,6 +531,7 @@ public partial class MainWindow : Window
     private void RebuildTree()
     {
         _roots.Clear();
+        _categoryVms.Clear();
         if (_scan is null) return;
 
         foreach (var (group, title) in CategoryCatalog.GroupOrder)
@@ -470,14 +552,13 @@ public partial class MainWindow : Window
                 // 双保险：截图 / 幻境云图 只属于图片页
                 if (category.Category is { } catId && CategoryCatalog.IsMediaOnly(catId)) continue;
 
-                if (category.Category is { } id &&
-                    _categoryBoxes.TryGetValue(id, out var box) &&
-                    box.IsChecked != true) continue;
-
+                // 左栏关掉的分类也建节点，只把可见性设成隐藏：
+                // 这样来回切换左栏不会重建树，用户已勾的条目不会丢
                 var vm = BuildVm(category);
                 if (vm is null) continue;
 
                 groupVm.Attach(vm);
+                if (category.Category is { } categoryId) _categoryVms[categoryId] = vm;
             }
 
             if (groupVm.Children.Count == 0) continue;
@@ -485,6 +566,8 @@ public partial class MainWindow : Window
             groupVm.IsExpanded = true;
             _roots.Add(groupVm);
         }
+
+        ApplyCategoryVisibility();
     }
 
     private TreeItemVm? BuildVm(ScanNode node)
@@ -492,7 +575,11 @@ public partial class MainWindow : Window
         // 分类节点在条目不多时默认展开；像聊天记录 40 个账号这种先收起，避免淹没其它分类
         var expand = node.Kind == NodeKind.Category && node.Children.Count <= 10;
         var vm = new TreeItemVm(node, null, OnNodeCheckChanged, expand);
-        if (vm.Children.Count == 0 && node.Targets.Count == 0) return null;
+
+        // 分类行即使这次没有可清理项也保留：让用户看见「它存在，只是被保留策略或时间限制挡住了」，
+        // 直接消失会让人以为程序没扫到
+        if (vm.Children.Count == 0 && node.Targets.Count == 0 && node.Kind != NodeKind.Category) return null;
+
         return vm;
     }
 
@@ -514,7 +601,7 @@ public partial class MainWindow : Window
 
             // 过期区服：本次勾选涉及的（含批量勾选分类带出来的）都需要确认
             var pending = vm.SelfAndDescendants()
-                            .Where(v => v.IsLegacy && !_confirmedLegacy.Contains(v.Node.Key))
+                            .Where(v => v.InvolvesLegacy && !_confirmedLegacy.Contains(v.Node.Key))
                             .ToList();
 
             if (pending.Count > 0)
@@ -544,12 +631,13 @@ public partial class MainWindow : Window
         UpdateSummary();
     }
 
-    /// <summary>过期区服行的展示文案：区服节点带上所属账号。</summary>
+    /// <summary>过期区服行的展示文案：区服行说清「只删这个大区」，账号行说清「按账号整体删」。</summary>
     private static string LegacyLine(TreeItemVm vm)
     {
         if (vm.Node.Kind == NodeKind.Region && vm.Parent is { } parent)
-            return $"· {parent.Title}　{vm.Title}";
-        return $"· {vm.Title}";
+            return $"· {parent.Title}　{vm.Title}：只删除这个大区";
+
+        return $"· {vm.Title}（含 {vm.Node.LegacyDetail}）：按账号整体删除";
     }
 
     private void SelectAll_Click(object sender, RoutedEventArgs e) => SetAll(true);
@@ -558,15 +646,22 @@ public partial class MainWindow : Window
 
     private void SetAll(bool value)
     {
+        // 逐分类设置而不是「整组一把勾」：左栏关掉的分类不该被全选带进来
+        // （否则确认弹窗会列出根本不会清理的过期区服）
         foreach (var root in _roots)
-            if (root.Node.Selectable || root.Children.Count > 0)
-                root.IsChecked = value;
+        {
+            if (!root.IsVisible) continue;
+
+            foreach (var category in root.Children.Where(c => c.IsVisible))
+                category.IsChecked = value;
+        }
 
         UpdateSummary();
     }
 
     // ---------------- 底部统计 ----------------
 
+    /// <summary>底部统计：与真正执行的清单同口径（同一套去重与父目录收敛）。</summary>
     private void UpdateSummary()
     {
         if (_roots.Count == 0)
@@ -577,28 +672,44 @@ public partial class MainWindow : Window
             return;
         }
 
-        var map = new Dictionary<string, (long Size, bool IsDir)>(StringComparer.OrdinalIgnoreCase);
+        var items = CleanPlanBuilder.Collect(CollectSelection());
 
-        foreach (var vm in _roots.SelectMany(r => r.SelfAndDescendants()))
-        {
-            if (vm.IsChecked != true) continue;
-            foreach (var t in vm.Node.Targets)
-                map[t.Path] = (t.SizeBytes, t.IsDirectory);
-        }
+        var bytes = items.Sum(t => t.SizeBytes);
+        var files = items.Count(t => !t.IsDirectory);
+        var dirs = items.Count(t => t.IsDirectory);
 
-        var bytes = map.Values.Sum(v => v.Size);
-        var files = map.Values.Count(v => !v.IsDir);
-        var dirs = map.Values.Count(v => v.IsDir);
-
-        SelectionText.Text = map.Count == 0
+        SelectionText.Text = items.Count == 0
             ? "已选 0 项"
-            : $"已选 {map.Count} 项 · {TargetItem.FormatSize(bytes)}";
+            : $"已选 {items.Count} 项 · {TargetItem.FormatSize(bytes)}";
 
-        SelectionSubText.Text = map.Count == 0
+        SelectionSubText.Text = items.Count == 0
             ? "勾选上方条目后即可清理"
             : $"{files} 个文件 / {dirs} 个目录";
 
         CleanButton.IsEnabled = true;
+    }
+
+    /// <summary>
+    /// 本次真正要清理的选择。两条规则：
+    /// ① 左栏关掉的分类整棵子树都不参与；
+    /// ② 父节点的自有条目只在「用户直接勾了它」时算数 —— 勾一个过期大区会把账号行推成
+    ///    全选状态，那不代表要删整个账号（见 <see cref="SelectedNode"/>）。
+    /// </summary>
+    private List<SelectedNode> CollectSelection()
+    {
+        var list = new List<SelectedNode>();
+        foreach (var root in _roots) Walk(root, list);
+        return list;
+
+        static void Walk(TreeItemVm vm, List<SelectedNode> into)
+        {
+            if (!vm.IsVisible) return;
+
+            if (vm.IsChecked == true)
+                into.Add(new SelectedNode(vm.Node, vm.CheckedExplicitly || vm.Children.Count == 0));
+
+            foreach (var child in vm.Children) Walk(child, into);
+        }
     }
 
     // ---------------- 清理方式 ----------------
@@ -667,50 +778,59 @@ public partial class MainWindow : Window
             return;
         }
 
-        var selected = _roots.SelectMany(r => r.SelfAndDescendants())
-                             .Where(v => v.IsChecked == true)
-                             .Select(v => v.Node)
-                             .ToList();
+        var selection = CollectSelection();
 
-        if (selected.Count == 0)
+        if (selection.Count == 0)
         {
             MessageBox.Show(this, "还没有勾选任何可清理的数据，请先在左侧选择数据类型并勾选条目。",
                 "无可清理项", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
-        // 过期区服兜底确认（例如被「全选」批量勾上）
-        var legacyNodes = selected
-            .Where(n => n.Flags.HasFlag(NodeFlags.LegacyRegion) && !_confirmedLegacy.Contains(n.Key))
+        // 过期区服兜底确认（例如被「全选」批量勾上）：
+        // 「只勾旧大区」与「勾整账号」是两种范围，文案必须分开说
+        var legacyScopes = selection
+            .Where(s => IsLegacyScope(s) && !_confirmedLegacy.Contains(s.Node.Key))
             .ToList();
 
-        if (legacyNodes.Count > 0)
+        if (legacyScopes.Count > 0)
         {
-            var detail = string.Join("\n", legacyNodes.Take(8)
-                .Select(n => n.LegacyDetail is { Length: > 0 } d ? $"· {n.Title}（{d}）" : $"· {n.Title}"));
+            var detail = string.Join("\n", legacyScopes.Take(8).Select(s => LegacyScopeLine(s.Node)));
             var ok = ConfirmDialog.Ask(this,
                 "清理范围包含过期区服数据",
-                $"{detail}\n\n这些大区不属于当前客户端的有效区服，可能来自区服合并前的旧版本，"
-                + "清理时将以账号文件夹为整体删除。",
+                $"{detail}\n\n这些大区不属于当前客户端的有效区服（电信区 / 双线区 / 无界区），"
+                + "可能来自区服合并前的旧版本。\n\n"
+                + "其中可能仍有未迁移的按键、界面与宏配置，"
+                + "请先在游戏内确认角色已完成数据转移或合并。",
                 "我确认上述角色的数据已完成转移，或已不再需要",
                 okText: "确认清理");
 
             if (!ok) return;
-            foreach (var n in legacyNodes) _confirmedLegacy.Add(n.Key);
+            foreach (var s in legacyScopes) _confirmedLegacy.Add(s.Node.Key);
         }
 
-        await RunCleanAsync(selected, SelectedMode);
+        await RunCleanAsync(selection, SelectedMode);
     }
+
+    /// <summary>这条选择会不会动到过期区服数据（旧大区行本身 / 被直接勾选的账号行）。</summary>
+    private static bool IsLegacyScope(SelectedNode selection) =>
+        selection.Node.Flags.HasFlag(NodeFlags.LegacyRegion) ||
+        (selection.Node.Flags.HasFlag(NodeFlags.HasLegacyChild) && selection.IncludeOwnTargets);
+
+    private static string LegacyScopeLine(ScanNode node) =>
+        node.Kind == NodeKind.Region
+            ? $"· {node.Title}：只删除这个大区"
+            : $"· {node.Title}（含 {node.LegacyDetail}）：按账号整体删除";
 
     /// <summary>图片页勾选清理：走与数据页完全相同的计划 / 守卫 / 确认 / 执行流程。</summary>
     private async void OnMediaCleanRequested(IReadOnlyList<ScanNode> nodes, CleanMode mode) =>
-        await RunCleanAsync(nodes, mode);
+        await RunCleanAsync(nodes.Select(node => new SelectedNode(node)).ToList(), mode);
 
-    private async Task RunCleanAsync(IReadOnlyList<ScanNode> selected, CleanMode mode)
+    private async Task RunCleanAsync(IReadOnlyList<SelectedNode> selection, CleanMode mode)
     {
         if (_busy) return;
 
-        var plan = Service.BuildPlan(selected);
+        var plan = Service.BuildPlan(selection);
         if (plan.Items.Count == 0)
         {
             MessageBox.Show(this, "没有可清理的条目（可能都被保留策略或路径校验排除了）。",

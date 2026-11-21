@@ -33,7 +33,10 @@ public sealed class ScanNode
     /// <summary>灰色备注，如 "保留最近 2 个"。</summary>
     public string? Note { get; set; }
 
-    /// <summary>过期区服名称列表（逗号分隔），仅 NodeFlags.LegacyRegion 时有值。</summary>
+    /// <summary>
+    /// 过期区服名称列表（逗号分隔）。旧大区行与「含过期大区的账号行」都会填，
+    /// 分别配合 <see cref="NodeFlags.LegacyRegion"/> 与 <see cref="NodeFlags.HasLegacyChild"/>。
+    /// </summary>
     public string? LegacyDetail { get; set; }
 
     /// <summary>磁盘路径（分类节点为 null）。</summary>
@@ -64,9 +67,22 @@ public sealed class ScanNode
     /// <summary>本节点直接持有的条目总字节（不含子节点）。</summary>
     public long OwnTargetBytes => Targets.Sum(t => t.SizeBytes);
 
+    /// <summary>
+    /// 本节点（含子孙）本次实际能清理掉多少。自有条目优先：
+    /// 整目录条目已经覆盖子孙，再相加会重复计算。
+    /// </summary>
+    public long CleanableBytes =>
+        Targets.Count > 0 ? Targets.Sum(t => t.SizeBytes) : Children.Sum(c => c.CleanableBytes);
+
+    public int CleanableCount =>
+        Targets.Count > 0 ? Targets.Count : Children.Sum(c => c.CleanableCount);
+
     public bool IsInvalidAccount => Flags.HasFlag(NodeFlags.InvalidAccount);
 
     public bool IsLegacyRegion => Flags.HasFlag(NodeFlags.LegacyRegion);
+
+    /// <summary>账号目录下含过期大区（账号本身不是过期区服）。</summary>
+    public bool HasLegacyChild => Flags.HasFlag(NodeFlags.HasLegacyChild);
 
     public string Key => FullPath is { Length: > 0 } p ? $"{Kind}|{p}" : $"{Kind}|{Category}|{Title}";
 
@@ -76,18 +92,25 @@ public sealed class ScanNode
         return child;
     }
 
-    /// <summary>自底向上汇总体积、文件数与最近修改时间。</summary>
+    /// <summary>
+    /// 自底向上汇总体积、文件数与最近修改时间。
+    /// 自带条目的节点（如含过期大区的账号行）不被子节点覆盖：
+    /// 账号行的口径是「整个账号占用」，覆盖后会只剩过期大区那点大小。
+    /// </summary>
     public void Aggregate()
     {
         foreach (var child in Children) child.Aggregate();
 
-        if (Children.Count > 0)
+        if (Children.Count == 0) return;
+
+        if (Targets.Count == 0)
         {
             SizeBytes = Children.Sum(c => c.SizeBytes);
             FileCount = Children.Sum(c => c.FileCount);
-            var max = Children.Count == 0 ? LastWriteUtc : Children.Max(c => c.LastWriteUtc);
-            if (max > LastWriteUtc) LastWriteUtc = max;
         }
+
+        var max = Children.Max(c => c.LastWriteUtc);
+        if (max > LastWriteUtc) LastWriteUtc = max;
     }
 
     public IEnumerable<ScanNode> Descendants()

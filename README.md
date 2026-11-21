@@ -12,8 +12,8 @@
 
 | 文件 | 体积 | 目标机 |
 |---|---|---|
-| `JX3Cleaner-v0.12-selfcontained.exe` | 59.2 MiB | **推荐**。已打包 .NET 10 桌面运行时，免安装 |
-| `JX3Cleaner-v0.12-framework-dependent.exe` | 723 KiB | 需 .NET 10 桌面运行时，体积小、启动快 |
+| `JX3Cleaner-v0.13-selfcontained.exe` | 59.2 MiB | **推荐**。已打包 .NET 10 桌面运行时，免安装 |
+| `JX3Cleaner-v0.13-framework-dependent.exe` | 731 KiB | 需 .NET 10 桌面运行时，体积小、启动快 |
 
 要求 **Windows 10 1607 及以上、x64**。exe 未做代码签名，首次运行 SmartScreen 会提示「未知发布者」，
 选「更多信息 → 仍要运行」即可。
@@ -47,7 +47,7 @@
 
 | 文档 | 内容 |
 |---|---|
-| [设计与项目规划](docs/JX3-Cleaner-设计与项目规划.md) | 完整设计基线：客户端结构核对、分类与命名规则、界面分页、保留策略、安全模型、测试矩阵、风险登记册、版本修订记录（当前 v0.12） |
+| [设计与项目规划](docs/JX3-Cleaner-设计与项目规划.md) | 完整设计基线：客户端结构核对、分类与命名规则、界面分页、保留策略、安全模型、测试矩阵、风险登记册、版本修订记录（当前 v0.13） |
 | [截图与云图页](docs/ui-media.png) | 月份分组、时间导航、视频首帧、勾选清理的界面形态 |
 | [设置页](docs/ui-settings.png) | 客户端地址 / 清理方式 / 五项保留策略 / 运行环境摘要 |
 | [运行环境自检](docs/ui-runtime.png) | 自检失败时的阻断弹窗（可复制诊断信息、直达下载页） |
@@ -71,13 +71,13 @@ dotnet test  tests/JX3Cleaner.Tests           # 单元测试（135 条）
 # 1) 自包含单文件（目标机无需安装任何 .NET 运行时）
 dotnet publish src/JX3Cleaner.App -p:PublishProfile=portable-selfcontained
 #   产物：dist/portable/JX3Cleaner.exe（约 62 MB）
-mv dist/portable/JX3Cleaner.exe dist/JX3Cleaner-v0.12-selfcontained.exe
+mv dist/portable/JX3Cleaner.exe dist/JX3Cleaner-v0.13-selfcontained.exe
 rmdir dist/portable
 
 # 2) 框架依赖单文件（目标机需装 .NET 10 桌面运行时）
 dotnet publish src/JX3Cleaner.App -c Release -p:SelfContained=false -o publish
-#   产物：publish/JX3Cleaner.exe（约 724 KB，单文件但不含运行时）
-mv publish/JX3Cleaner.exe dist/JX3Cleaner-v0.12-framework-dependent.exe
+#   产物：publish/JX3Cleaner.exe（约 731 KB，单文件但不含运行时）
+mv publish/JX3Cleaner.exe dist/JX3Cleaner-v0.13-framework-dependent.exe
 rmdir publish
 ```
 
@@ -86,8 +86,8 @@ rmdir publish
 
 | 文件 | 体积 | 目标机 |
 |---|---|---|
-| `dist/JX3Cleaner-v0.12-selfcontained.exe` | 62,072,080 B | 免装 .NET |
-| `dist/JX3Cleaner-v0.12-framework-dependent.exe` | 740,968 B | 需 .NET 10 桌面运行时 |
+| `dist/JX3Cleaner-v0.13-selfcontained.exe` | 62,075,684 B | 免装 .NET |
+| `dist/JX3Cleaner-v0.13-framework-dependent.exe` | 748,136 B | 需 .NET 10 桌面运行时 |
 
 两个 exe 各自跑 `--shot out.png --settings`，设置页「运行环境」会分别显示 `自包含 · 正常` 与
 `框架依赖 · 正常` —— 发布形态由编译期元数据写死，不靠路径猜。
@@ -165,10 +165,10 @@ LICENSE                MIT
 | 茗伊插件 | JCL战斗日志 | `...\{gid}@zhcn_hd\userdata\combat_logs` | 按账号，保留最近 Y 天 |
 | 茗伊插件 | 金团记录 | `...\{gid}@zhcn_hd\userdata\gkp` | 按账号，仅日期命名文件，保留最近 Z 天 |
 | 茗伊插件 | 云团监数据 | `interface\my#data\!all-users@zhcn_hd\userdata\team_mon\remote` | 按组（`.jx3dat` + `.meta.jx3dat`），保留最近 M 组 |
-| 茗伊插件 | 旧版团监数据（已弃用） | `...\userdata\TeamMon` | 整目录，**存在才显示并勾选** |
-| 懒人插件 | 懒人插件（已弃用） | `interface\LR_Plugin` | 整目录，**存在才显示并勾选** |
-| 懒人插件 | 懒人插件数据（已弃用） | `interface\LR_Plugin@DATA` | 整目录，**存在才显示并勾选** |
-| 游戏数据 | 角色数据 | `userdata\{账号}` | 以账号文件夹为整体，行后括号内为角色名 |
+| 茗伊插件 | 旧版团监数据（已弃用） | `...\userdata\TeamMon` | 整目录，**存在才显示**，默认勾选（没可清理项时不勾） |
+| 懒人插件 | 懒人插件（已弃用） | `interface\LR_Plugin` | 整目录，**存在才显示**，默认勾选（没可清理项时不勾） |
+| 懒人插件 | 懒人插件数据（已弃用） | `interface\LR_Plugin@DATA` | 整目录，**存在才显示**，默认勾选（没可清理项时不勾） |
+| 游戏数据 | 角色数据 | `userdata\{账号}` | 以账号文件夹为整体，行后括号内为角色名；含过期大区时可展开，**勾大区只删那个大区，勾账号行才整号删除** |
 | 游戏数据 | 家园蓝图 | `homelanddir\Blueprints` | 按文件 |
 | 游戏数据 | 染发方案 | `hairdyeingdata` | 按文件 |
 | 游戏数据 | 设计站图片 | `sharestationdata` | 按文件 |
@@ -189,7 +189,13 @@ LICENSE                MIT
 - 树里的行只靠复选框表达状态，鼠标点行**不会出现选中蓝底**。
 - 目录不存在的分类不在两栏出现（不是灰显禁用）；组内全空则整组隐藏。
 - 角色数据以账号文件夹为整体，行后括号里是角色名；账号下有过期区服时可展开单独勾选。
-- 「文件时间」选非「全部」时，下拉框正下方提示 **已过滤 N 项，约 XX MB**（被时间范围排除的量）。
+  过期大区行有「过期区服」角标，账号行有「含过期区服」角标：**只有直接勾账号行才是整号删除**，
+  只勾过期大区时仅删除该大区目录，同账号下其它区服原样保留。
+- 「时间限制」选非「全部」时，下拉框正下方分别提示 **按保留策略跳过 N 项** 与 **按时间限制排除 N 项** ——
+  两个数字是两回事（保留策略来自设置页，时间限制来自这一处），合并成一句会看不懂为什么只清了一部分。
+- 体积列显示的是**本次能清掉多少**（被保留或被时间限制挡掉的行显示「不清理」，悬停看总占用）。
+- 左栏「数据类型」是分类的显隐开关：取消勾选只是把该分类从树里藏起来，**不会**重置树上已勾好的条目
+  （数据清理范围由右侧树的复选框决定）。
 
 **截图与云图**
 
@@ -252,7 +258,7 @@ dotnet run --project src/JX3Cleaner.Diag -- selftest
 JX3Cleaner.exe --shot out.png                    # 主界面
 JX3Cleaner.exe --shot out.png --tab media        # 截图与云图页
 JX3Cleaner.exe --shot out.png --month 3          # 点第 4 个月份验证定位
-JX3Cleaner.exe --shot out.png --days 90          # 预设文件时间筛选，验证过滤提示
+JX3Cleaner.exe --shot out.png --days 90          # 预设时间限制，验证保留 / 时间限制两行提示
 JX3Cleaner.exe --shot out.png --settings         # 设置页
 JX3Cleaner.exe --shot out.png --runtime          # 环境自检失败弹窗（用假快照）
 ```
@@ -270,6 +276,8 @@ JX3Cleaner.exe --shot out.png --runtime          # 环境自检失败弹窗（�
 - [x] 单文件发布产物验证（自包含约 62 MB，`--settings` 自检显示「自包含 · 正常」）
 - [ ] 图片页行数据仍用 `Clear()` + `Add()` 重建，几千项时会有可感知停顿
 - [ ] 过期区服与云团监的确认弹窗尚未接入自动化测试
+- [ ] 暂时无法表达「整号删除但保留其中某个过期大区」：勾账号行是整号删除，要保留就只能逐项勾选
+- [ ] 界面出图仍是 v0.12 截图（含「文件时间」旧文案），v0.13 的文案与体积列需按脱敏流程重拍
 
 ## 免责声明
 

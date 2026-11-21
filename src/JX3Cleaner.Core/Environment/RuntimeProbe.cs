@@ -44,8 +44,11 @@ public static class RuntimeProbe
         var fromMetadata = InterpretMetadata(ReadMetadata(entry));
         if (fromMetadata != DeploymentMode.Unknown) return fromMetadata;
 
-        // 兜底：单文件发布下 Assembly.Location 为空，只有非单文件才能这样比较
+        // 兜底：单文件发布下 Assembly.Location 为空，只有非单文件才能这样比较。
+        // IL3000 正是在描述这件事，属于本分支的预期行为，不是遗漏。
+#pragma warning disable IL3000
         var corelib = Safe(() => typeof(object).Assembly.Location, string.Empty);
+#pragma warning restore IL3000
         if (!string.IsNullOrEmpty(corelib))
         {
             var baseDir = AppContext.BaseDirectory;
