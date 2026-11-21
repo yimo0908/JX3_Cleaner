@@ -1,5 +1,6 @@
 using JX3Cleaner.Core.Config;
 using JX3Cleaner.Core.Models;
+using JX3Cleaner.Core.Planning;
 using JX3Cleaner.Core.Scanning;
 
 namespace JX3Cleaner.Tests;
@@ -346,6 +347,38 @@ public sealed class ScanEngineTests
         var single = Assert.Single(cleanable);
         Assert.EndsWith("old.blueprintx", single.Title);
         Assert.Equal(1, result.Filtered.Count);
+    }
+
+    /// <summary>
+    /// 界面上「全选」会把保留组也勾上（Retained 行不清除复选框），但保留组没有条目，
+    /// 所以无论怎么勾都不会进清理计划 —— 这条用例把这个前提钉住。
+    /// </summary>
+    [Fact]
+    public void 全选后保留的云团监组不会进清理计划()
+    {
+        using var client = new TempClient();
+        const string rel = @"interface\my#data\!all-users@zhcn_hd\userdata\team_mon\remote";
+
+        for (var i = 1; i <= 6; i++)
+        {
+            var stamp = Now.AddDays(-i).ToUniversalTime();
+            client.File($@"{rel}\r-{i}.jx3dat", 100, stamp);
+            client.File($@"{rel}\r-{i}.meta.jx3dat", 50, stamp);
+        }
+
+        var node = Category(Scan(client, keep: new KeepSettings { TeamMonGroups = 5 }),
+                            CleanCategory.CloudTeamMon);
+
+        Assert.Equal(5, node.Children.Count(c => c.Flags.HasFlag(NodeFlags.Retained)));
+
+        // 模拟界面的「全选」：分类行与其下所有组行都是勾上的
+        var selected = new List<SelectedNode> { new(node) };
+        selected.AddRange(node.Children.Select(c => new SelectedNode(c)));
+
+        var items = CleanPlanBuilder.Collect(selected);
+
+        Assert.Equal(2, items.Count);                       // 只剩最旧那组的 2 个文件
+        Assert.All(items, t => Assert.Contains("r-6", t.Path));
     }
 
     [Fact]

@@ -127,4 +127,85 @@ public sealed class TreeItemVmTests
         Assert.False(vm.IsVisible);
         Assert.True(vm.IsChecked);
     }
+
+    // ---------------- 保留行不可勾（云团监「保留最近 M 组」） ----------------
+
+    /// <summary>云团监分类：前 retained 组被保留策略护住（无条目），其余组可清理。</summary>
+    private static ScanNode TeamMonCategory(int cleanable, int retained)
+    {
+        var category = new ScanNode
+        {
+            Kind = NodeKind.Category,
+            Category = CleanCategory.CloudTeamMon,
+            Title = "云团监数据",
+            Selectable = true
+        };
+
+        for (var i = 0; i < retained; i++)
+            category.Add(new ScanNode
+            {
+                Kind = NodeKind.Group,
+                Category = CleanCategory.CloudTeamMon,
+                Title = $"r-keep{i}",
+                Flags = NodeFlags.Retained,
+                SizeBytes = 100,
+                FileCount = 2
+            });
+
+        for (var i = 0; i < cleanable; i++)
+        {
+            var node = new ScanNode
+            {
+                Kind = NodeKind.Group,
+                Category = CleanCategory.CloudTeamMon,
+                Title = $"r-old{i}",
+                SizeBytes = 100,
+                FileCount = 2
+            };
+
+            node.Targets.Add(new TargetItem(
+                Path.Combine(Path.GetTempPath(), "jx3-vm", $"r-old{i}.jx3dat"), 100, DateTime.UtcNow, false));
+            category.Add(node);
+        }
+
+        return category;
+    }
+
+    [Fact]
+    public void 保留行自己点也勾不上()
+    {
+        var vm = new TreeItemVm(TeamMonCategory(2, 3), null, null, expand: false);
+        var retained = vm.Children.Where(c => c.IsRetained).ToList();
+
+        Assert.Equal(3, retained.Count);
+        Assert.All(retained, r => Assert.False(r.IsCheckable));
+
+        retained[0].IsChecked = true;
+
+        Assert.False(retained[0].IsChecked);
+        Assert.False(retained[0].CheckedExplicitly);
+    }
+
+    [Fact]
+    public void 全选分类时跳过保留行()
+    {
+        var vm = new TreeItemVm(TeamMonCategory(2, 3), null, null, expand: false);
+
+        vm.IsChecked = true;                     // 相当于「全选」勾了云团监数据这一分类
+
+        Assert.True(vm.IsChecked);
+        Assert.All(vm.Children.Where(c => !c.IsRetained), c => Assert.True(c.IsChecked));
+        Assert.All(vm.Children.Where(c => c.IsRetained), c => Assert.False(c.IsChecked));
+    }
+
+    [Fact]
+    public void 三态只统计可勾子项_保留行不会把分类拖成半选()
+    {
+        var vm = new TreeItemVm(TeamMonCategory(2, 3), null, null, expand: false);
+
+        foreach (var child in vm.Children.Where(c => c.IsCheckable))
+            child.IsChecked = true;
+
+        Assert.True(vm.IsChecked);               // 3 个保留行没勾，也不该变三态
+    }
 }

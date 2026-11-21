@@ -44,8 +44,9 @@ public sealed class TreeItemVm : INotifyPropertyChanged
         Parent = parent;
         _onCheckChanged = onCheckChanged;
         _isExpanded = expand;
-        _isChecked = node.DefaultSelected;
-        _checkedExplicitly = node.DefaultSelected;
+        // 没有可清理条目的行不接受勾选，初始态也不会是「勾着但清不了」
+        _isChecked = node.DefaultSelected && IsCheckable;
+        _checkedExplicitly = _isChecked == true;
 
         foreach (var child in node.Children)
             Children.Add(new TreeItemVm(child, this, onCheckChanged, expand: false));
@@ -134,7 +135,17 @@ public sealed class TreeItemVm : INotifyPropertyChanged
 
     public bool IsIncomplete => Node.Flags.HasFlag(NodeFlags.IncompleteGroup);
 
-    public bool IsSelectable => Node.Selectable && !IsGroupHeader;
+    /// <summary>被保留策略护住的行（如「保留最近 5 组」里的前 5 组）。</summary>
+    public bool IsRetained => Node.Flags.HasFlag(NodeFlags.Retained);
+
+    /// <summary>
+    /// 本行能不能被勾选。判据只有一条：确实有能删的条目。
+    /// 保留行、被时间限制挡掉的行、本次为空的分组都不参与勾选 ——
+    /// 「勾着但清不了东西」在界面上是个误导，直接置灰。
+    /// </summary>
+    public bool IsCheckable => !IsGroupHeader && Node.CleanableCount > 0;
+
+    public bool IsSelectable => Node.Selectable && IsCheckable;
 
     /// <summary>组标题行不显示复选框，其余都显示（顶级分类可勾选）。</summary>
     public bool ShowCheckBox => !IsGroupHeader;
@@ -201,6 +212,10 @@ public sealed class TreeItemVm : INotifyPropertyChanged
 
     private void SetChecked(bool value, bool propagateDown, bool notifyParent, bool notifyHost, bool direct)
     {
+        // 没有可清理条目的行（保留 / 被时间限制挡掉 / 空分组）不接受勾选，
+        // 无论是点它自己还是被上游批量勾选带过来
+        if (!IsCheckable) return;
+
         var changed = _isChecked != value;
         _isChecked = value;
         _checkedExplicitly = value && direct;
@@ -214,8 +229,10 @@ public sealed class TreeItemVm : INotifyPropertyChanged
         if (propagateDown)
         {
             _suppress = true;
-            // 向下传播是「整棵子树都要」的明确意图，子节点按直接勾选处理
-            foreach (var child in Children) child.SetChecked(value, true, false, false, direct);
+            // 向下传播是「整棵子树都要」的明确意图，子节点按直接勾选处理；
+            // 不可勾的子节点（保留组）跳过，否则会出现勾着却清不掉的假状态
+            foreach (var child in Children.Where(c => c.IsCheckable))
+                child.SetChecked(value, true, false, false, direct);
             _suppress = false;
         }
 
@@ -225,10 +242,11 @@ public sealed class TreeItemVm : INotifyPropertyChanged
 
     private void RefreshFromChildren()
     {
-        if (Children.Count == 0) return;
+        var candidates = Children.Where(c => c.IsCheckable).ToList();
+        if (candidates.Count == 0) return;
 
-        var all = Children.All(c => c._isChecked == true);
-        var none = Children.All(c => c._isChecked == false);
+        var all = candidates.All(c => c._isChecked == true);
+        var none = candidates.All(c => c._isChecked == false);
         var target = all ? true : none ? false : (bool?)null;
 
         if (_isChecked != target)
